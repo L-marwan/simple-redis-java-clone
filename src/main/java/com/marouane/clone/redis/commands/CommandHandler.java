@@ -1,4 +1,4 @@
-package com.marouane.challenges.redisclone.commands;
+package com.marouane.clone.redis.commands;
 
 import org.apache.commons.lang3.StringUtils;
 

@@ -1,4 +1,4 @@
-package com.marouane.challenges.redisclone;
+package com.marouane.clone.redis;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;

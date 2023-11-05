@@ -1,4 +1,4 @@
-package com.marouane.challenges.redisclone;
+package com.marouane.clone.redis;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

@@ -1,6 +1,6 @@
-package com.marouane.challenges.redisclone.commands;
+package com.marouane.clone.redis.commands;
 
-import com.marouane.challenges.redisclone.CacheManager;
+import com.marouane.clone.redis.CacheManager;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

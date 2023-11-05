@@ -1,4 +1,4 @@
-package com.marouane.challenges.redisclone;
+package com.marouane.clone.redis;
 
 import java.io.IOException;
 import java.net.ServerSocket;
