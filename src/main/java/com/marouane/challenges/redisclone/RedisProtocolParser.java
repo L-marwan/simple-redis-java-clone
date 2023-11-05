@@ -18,10 +18,8 @@ public class RedisProtocolParser {
     }
 
     private static Object parse(Reader reader) throws IOException {
-        int c = 0;
         char ch = (char) reader.read();
-        return switch (ch) {
-            case '+' -> parseSimpleString(reader);
+        return switch (ch) { // we'll only deal with Strings and arrays for now
             case '$' -> parseBulkString(reader);
             case '*' -> parseArray(reader);
             default -> parseSimpleString(reader);
