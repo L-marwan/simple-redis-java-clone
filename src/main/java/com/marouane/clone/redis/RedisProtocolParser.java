@@ -4,20 +4,18 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Logger;
 
 public class RedisProtocolParser {
-    private static Logger logger = Logger.getLogger(RedisProtocolParser.class.getName());
 
-    public static Object parse(InputStream is) throws IOException {
+    public static Object parseFromRESP(InputStream is) throws IOException {
 
         Reader reader = new BufferedReader(new InputStreamReader
                 (is, StandardCharsets.UTF_8));
 
-        return parse(reader);
+        return parseFromRESP(reader);
     }
 
-    private static Object parse(Reader reader) throws IOException {
+    private static Object parseFromRESP(Reader reader) throws IOException {
         char ch = (char) reader.read();
         return switch (ch) { // we'll only deal with Strings and arrays for now
             case '$' -> parseBulkString(reader);
@@ -39,7 +37,7 @@ public class RedisProtocolParser {
 
         reader.read(); // skip /n
         while (i < size) {
-            result.add(parse(reader));
+            result.add(parseFromRESP(reader));
             reader.read(); // skip /r
             reader.read(); // skip /n
             i++;
@@ -70,5 +68,38 @@ public class RedisProtocolParser {
         reader.read(chars);
         result = new String(chars);
         return result;
+    }
+
+    public static String parseToRESP(Object o) {
+        if (o == null) {
+            return "_\r\n";
+        }
+        if (o instanceof String s) {
+            return parseToRESP(s, false);
+        }
+        if (o instanceof List<?> l) {
+            return parseToRESP(l);
+        }
+        return "- could not parse result \r\n";
+    }
+
+    public static String parseToRESP(String s, boolean isBulk) {
+        var simpleStringFormat = "+%s\r\n";
+        var bulkStringFormat = "$%d\r\n%s\r\n";
+        if (s == null && isBulk) {
+            return "$-1\r\n";
+        }
+        return isBulk ? bulkStringFormat.formatted(s.length(), s) : simpleStringFormat.formatted(s);
+    }
+
+    public static String parseToRESP(List<String> strings) {
+        StringBuilder builder = new StringBuilder();
+
+        builder.append("*")
+                .append(strings.size())
+                .append("\r\n");
+        strings.forEach(s -> builder.append(parseToRESP(s, true)));
+
+        return builder.toString();
     }
 }

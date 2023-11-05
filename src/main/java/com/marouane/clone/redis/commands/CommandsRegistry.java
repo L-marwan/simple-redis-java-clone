@@ -9,14 +9,16 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 public class CommandsRegistry {
-    private static final Logger logger = Logger.getLogger(CommandsRegistry.class.getName());
+    private final Logger logger;
     private final Map<String, Class<? extends ICommand<?>>> commands = new HashMap<>();
 
     private static volatile CommandsRegistry instance;
 
     @SuppressWarnings("unchecked")
     private CommandsRegistry() {
-        Reflections reflections = new Reflections("com.marouane.challenges.redisclone.commands");
+        logger = Logger.getLogger(CommandsRegistry.class.getName());
+
+        Reflections reflections = new Reflections("com.marouane.clone.redis.commands");
         Set<Class<?>> annotatedCommandClasses = reflections.getTypesAnnotatedWith(Command.class);
 
         annotatedCommandClasses.forEach(c -> {
@@ -24,7 +26,7 @@ public class CommandsRegistry {
             if (ICommand.class.isAssignableFrom(c)) {
                 commands.put(a.name(), (Class<? extends ICommand<?>>) c);
             } else {
-                logger.warning("class ignored as it doesn't implement ICommand: %s".formatted(c.getName()));
+                logger.warning("class ignored as it doesn't implement ICommand: %s".formatted(c.getName().toUpperCase()));
             }
         });
     }
@@ -52,7 +54,7 @@ public class CommandsRegistry {
      * @throws CommandException if the command is not found, or if there's any errors creating an instance of the command
      */
     public ICommand<?> getCommand(String name) throws CommandException {
-        Class<? extends ICommand<?>> commandClass = commands.get(name);
+        Class<? extends ICommand<?>> commandClass = commands.get(name.toUpperCase());
         if (commandClass == null) {
             throw new CommandException("command with name '%s' not found.".formatted(name));
         }

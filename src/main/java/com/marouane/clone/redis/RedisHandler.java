@@ -1,5 +1,7 @@
 package com.marouane.clone.redis;
 
+import com.marouane.clone.redis.commands.CommandException;
+import com.marouane.clone.redis.commands.CommandHandler;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
@@ -31,12 +33,20 @@ public class RedisHandler implements Callable<Boolean> {
 
     @Override
     public Boolean call() throws Exception {
+        var writer = new PrintWriter(os, true);
         while (!socket.isClosed()) {
-            Object result = RedisProtocolParser.parse(is);
-            logger.info("parse result is: " + result);
-            if (result instanceof String s && StringUtils.isBlank(s)) break;
-            var writer = new PrintWriter(os, true);
-            writer.println("+PONG");
+            Object parseResult = RedisProtocolParser.parseFromRESP(is);
+            if (parseResult instanceof String s && StringUtils.isBlank(s))
+                continue;
+            Object result;
+
+            try {
+                result = CommandHandler.handle(parseResult);
+            } catch (CommandException e) {
+                result = "- ERR " + e.getMessage() + "\r\n";
+            }
+
+            writer.println(RedisProtocolParser.parseToRESP(result));
         }
 
         logger.info("Socket closed." + socket);
