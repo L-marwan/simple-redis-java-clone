@@ -1,5 +1,7 @@
 package com.marouane.clone.redis;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -7,7 +9,7 @@ import java.util.List;
 
 public class RedisProtocolParser {
 
-    public static Object parseFromRESP(InputStream is) throws IOException {
+    public static ParseResult parseFromRESP(InputStream is) throws IOException {
 
         Reader reader = new BufferedReader(new InputStreamReader
                 (is, StandardCharsets.UTF_8));
@@ -15,16 +17,25 @@ public class RedisProtocolParser {
         return parseFromRESP(reader);
     }
 
-    private static Object parseFromRESP(Reader reader) throws IOException {
+    private static ParseResult parseFromRESP(Reader reader) throws IOException {
         char ch = (char) reader.read();
         return switch (ch) { // we'll only deal with Strings and arrays for now
             case '$' -> parseBulkString(reader);
             case '*' -> parseArray(reader);
-            default -> parseSimpleString(reader);
+            case '+' -> parseSimpleString(reader);
+            default -> parseInline(reader, ch);
         };
     }
 
-    private static List<Object> parseArray(Reader reader) throws IOException {
+    private static ParseResult parseInline(Reader reader, char firstChar) throws IOException {
+        String line = ((BufferedReader) reader).readLine();
+        if (line == null)
+            return new ParseResult(true, "");
+        line = firstChar + line;
+        return new ParseResult(true, List.of(line.split(" ")));
+    }
+
+    private static ParseResult parseArray(Reader reader) throws IOException {
         String sizeString = "";
         int c;
         List<Object> result = new ArrayList<>();
@@ -37,24 +48,24 @@ public class RedisProtocolParser {
 
         reader.read(); // skip /n
         while (i < size) {
-            result.add(parseFromRESP(reader));
+            result.add(parseFromRESP(reader).value());
             reader.read(); // skip /r
             reader.read(); // skip /n
             i++;
         }
-        return result;
+        return new ParseResult(false, result);
     }
 
-    private static String parseSimpleString(Reader reader) throws IOException {
+    private static ParseResult parseSimpleString(Reader reader) throws IOException {
         String result = "";
         int c;
         while ((c = reader.read()) != -1 && (char) c != '\r') {
             result += (char) c;
         }
-        return result;
+        return new ParseResult(false, result);
     }
 
-    private static String parseBulkString(Reader reader) throws IOException {
+    private static ParseResult parseBulkString(Reader reader) throws IOException {
         String sizeString = "";
         String result = "";
         int c;
@@ -67,32 +78,36 @@ public class RedisProtocolParser {
         char[] chars = new char[size];
         reader.read(chars);
         result = new String(chars);
+        return new ParseResult(false, result);
+    }
+
+    public static String parseToRESP(Object o, boolean isInline) {
+        String result = "";
+        if (o == null) {
+            result = "_";
+        }
+        if (o instanceof String s) {
+            result = parseToRESP(s, false);
+        }
+        if (o instanceof List<?> l) {
+            result = parseToRESP(l);
+        }
+        if (StringUtils.isBlank(result))
+            result = "- could not parse result";
+        result = isInline ? result : result + "\r\n";
         return result;
     }
 
-    public static String parseToRESP(Object o) {
-        if (o == null) {
-            return "_\r\n";
-        }
-        if (o instanceof String s) {
-            return parseToRESP(s, false);
-        }
-        if (o instanceof List<?> l) {
-            return parseToRESP(l);
-        }
-        return "- could not parse result \r\n";
-    }
-
     public static String parseToRESP(String s, boolean isBulk) {
-        var simpleStringFormat = "+%s\r\n";
-        var bulkStringFormat = "$%d\r\n%s\r\n";
+        var simpleStringFormat = "+%s";
+        var bulkStringFormat = "$%d\r\n%s";
         if (s == null && isBulk) {
-            return "$-1\r\n";
+            return "$-1";
         }
         return isBulk ? bulkStringFormat.formatted(s.length(), s) : simpleStringFormat.formatted(s);
     }
 
-    public static String parseToRESP(List<String> strings) {
+    public static String parseToRESP(List<?> strings) {
         StringBuilder builder = new StringBuilder();
 
         builder.append("*")

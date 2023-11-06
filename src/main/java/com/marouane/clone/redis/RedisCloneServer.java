@@ -19,7 +19,7 @@ public class RedisCloneServer {
 
         try (ExecutorService threadPoolExecutor = Executors.newVirtualThreadPerTaskExecutor();
              ServerSocket myserverSocket = new ServerSocket(port)) {
-
+            LOGGER.info("Listening on port: " + port);
             // getting client request
             while (true) {
                 acceptConnection(myserverSocket, threadPoolExecutor);

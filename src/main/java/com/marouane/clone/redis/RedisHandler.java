@@ -33,23 +33,29 @@ public class RedisHandler implements Callable<Boolean> {
 
     @Override
     public Boolean call() throws Exception {
-        var writer = new PrintWriter(os, true);
         while (!socket.isClosed()) {
-            Object parseResult = RedisProtocolParser.parseFromRESP(is);
-            if (parseResult instanceof String s && StringUtils.isBlank(s))
-                continue;
-            Object result;
+            ParseResult parseResult = null;
+            Object result = null;
 
+            parseResult = RedisProtocolParser.parseFromRESP(is);
+
+            if (parseResult == null || (parseResult.value() instanceof String s && StringUtils.isBlank(s)))
+                continue;
+
+            logger.info("parse result " + parseResult);
             try {
-                result = CommandHandler.handle(parseResult);
+                result = CommandHandler.handle(parseResult.value());
             } catch (CommandException e) {
-                result = "- ERR " + e.getMessage() + "\r\n";
+                logger.severe("error: " + e.getMessage());
+                result = "- ERR " + e.getMessage();
             }
 
-            writer.println(RedisProtocolParser.parseToRESP(result));
+            var writer = new PrintWriter(os, true);
+
+            writer.println(RedisProtocolParser.parseToRESP(result, parseResult.isInline()));
         }
 
-        logger.info("Socket closed." + socket);
+        logger.info("Socket closed. " + socket);
         return true;
     }
 }

@@ -11,7 +11,7 @@ class CommandsRegistryTest {
     void commandsAreFetched() throws CommandException {
         var reg = CommandsRegistry.getInstance();
         var commands = reg.getCommands();
-        assertThat(commands).hasSize(3);
+        assertThat(commands).hasSize(4);
     }
 
 }
